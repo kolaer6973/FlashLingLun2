@@ -3,6 +3,12 @@ import { LoadingController } from './LoadingController';
 import { Marquee } from './Marquee';
 const { ccclass, property } = _decorator;
 
+/** 选关界面的两种视图 */
+export enum ViewMode {
+    Challenge = 0,   // 挑战模式：唱片 + 左右箭头 + 歌名/作者/难度/分数
+    Story = 1,       // 剧情模式：换背景、藏起挑战模式专属 UI（点「书」进第一章是下一步）
+}
+
 @ccclass('LevelSelectController')
 export class LevelSelectController extends Component {
     @property(Node) record: Node = null;        // 唱片节点
@@ -28,9 +34,21 @@ export class LevelSelectController extends Component {
     @property([String]) songAuthors: string[] = ['七朵乐队', '待定', '待定'];
     @property([Number]) songStars: number[] = [3, 4, 5];
 
+    // —— 挑战 / 剧情 模式切换 ——
+    @property(Button) modeBtn: Button = null;            // 底部模式切换按钮（挑战模式 / 剧情模式）
+    @property(Label) modeLabel: Label = null;            // 按钮上的文字，随模式变
+    @property(Sprite) background: Sprite = null;         // 背景图（两种模式共用同一张 Sprite，切模式时换图）
+    @property(SpriteFrame) storyBg: SpriteFrame = null;  // 剧情模式的背景图
+    @property([Node]) challengeOnly: Node[] = [];        // 只在挑战模式显示的节点，切到剧情时统一隐藏
+    @property([Node]) storyOnly: Node[] = [];            // 只在剧情模式显示的节点（书），切回挑战时隐藏
+    @property(Node) bookNode: Node = null;                // 「书」节点：剧情模式下点它进第一章
+
     private currentLevel = 0;//当前关卡索引 0/1/2
     private spinSpeed = 30;//唱片旋转速度（度/秒）
     private isSwitching = false;//切关动画中，防止连点
+
+    private mode: ViewMode = ViewMode.Challenge;   // 当前处于哪个模式
+    private challengeBg: SpriteFrame = null;       // 挑战模式的背景图（切走前记下来，切回时还原）
 
     start() {
         //三个按钮各自按一个监听事件(点击)
@@ -38,8 +56,44 @@ export class LevelSelectController extends Component {
         this.rightBtn.node.on(Button.EventType.CLICK,this.onNext,this);
         this.backBtn.node.on(Button.EventType.CLICK,this.onBack,this);
         this.recordBtn.node.on(Button.EventType.CLICK,this.onEnterLevel,this);
+        if (this.modeBtn) this.modeBtn.node.on(Button.EventType.CLICK, this.toggleMode, this);   // 底部按钮：切模式
+        if (this.bookNode) this.bookNode.on(Node.EventType.TOUCH_END, this.onEnterStory, this);   // 点书：进第一章
 
         this.refreshRecord();//初始化，显示第一张唱片
+
+        // 记下挑战模式的原始背景（切到剧情再切回来时还原），然后按当前模式刷一遍 UI
+        if (this.background) this.challengeBg = this.background.spriteFrame;
+        this.applyMode();
+    }
+
+    // —— 模式切换：点一下按钮就在「挑战 / 剧情」之间来回切 ——
+    toggleMode() {
+        this.mode = (this.mode === ViewMode.Challenge) ? ViewMode.Story : ViewMode.Challenge;
+        this.applyMode();
+    }
+
+    // 按当前模式刷新界面：换背景、显隐挑战模式专属节点、改按钮文字
+    applyMode() {
+        const story = (this.mode === ViewMode.Story);
+
+        // ① 背景：剧情模式换成剧情背景；storyBg 没拖进来时保持原图，避免背景变白
+        if (this.background) {
+            const frame = story ? this.storyBg : this.challengeBg;
+            if (frame) this.background.spriteFrame = frame;
+        }
+
+        // ② 挑战模式专属节点统一显隐（唱片、左右箭头、歌名作者、难度、分数框…由编辑器数组决定）
+        for (const n of this.challengeOnly) {
+            if (n) n.active = !story;
+        }
+
+        // ③ 剧情模式专属节点（书）：和 ② 相反，剧情模式才显示
+        for (const n of this.storyOnly) {
+            if (n) n.active = story;
+        }
+
+        // ④ 按钮文字跟随当前模式，点它即切到另一个模式
+        if (this.modeLabel) this.modeLabel.string = story ? '剧情模式' : '挑战模式';
     }
 
     onPrev(){//点左箭头上一关
@@ -97,6 +151,12 @@ export class LevelSelectController extends Component {
         if (this.scoreMarquee) this.scoreMarquee.refresh();
     }
 
+    // 点「书」进入第一章（只在剧情模式下有效）
+    onEnterStory() {
+        if (this.mode !== ViewMode.Story) return;
+        LoadingController.goto('Chapter1');
+    }
+
     onBack(){
         LoadingController.goto('MainMenu');
     }
@@ -112,8 +172,7 @@ export class LevelSelectController extends Component {
     }
 
     update(deltaTime: number) {//每帧让唱片转起来
+        if (this.mode === ViewMode.Story) return;   // 剧情模式下唱片是隐藏的，不用白转
         this.record.angle += this.spinSpeed * deltaTime;
     }
 }
-
-
