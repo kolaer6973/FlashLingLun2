@@ -1,5 +1,6 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, Button, director, tween, Vec3, Label, sys } from 'cc';
+import { _decorator, Component, Node, Sprite, SpriteFrame, Button, director, tween, Vec3, Label, sys, UIOpacity } from 'cc';
 import { LoadingController } from './LoadingController';
+import { BookSeal } from './BookSeal';
 import { Marquee } from './Marquee';
 const { ccclass, property } = _decorator;
 
@@ -41,12 +42,17 @@ export class LevelSelectController extends Component {
     @property(SpriteFrame) storyBg: SpriteFrame = null;  // 剧情模式的背景图
     @property([Node]) challengeOnly: Node[] = [];        // 只在挑战模式显示的节点，切到剧情时统一隐藏
     @property([Node]) storyOnly: Node[] = [];            // 只在剧情模式显示的节点（书），切回挑战时隐藏
-    @property(Node) bookNode: Node = null;                // 「书」节点：剧情模式下点它进第一章
+    @property(Node) bookNode: Node = null;
+    @property(Node) fadeMask: Node = null;                // 模式切换用的全屏遮罩
+    @property([Sprite]) tintSprites: Sprite[] = [];        // 需要随模式换色的按钮底图
+    @property([SpriteFrame]) storyFrames: SpriteFrame[] = [];   // 剧情模式对应的按钮图（顺序同 tintSprites）
 
     private currentLevel = 0;//当前关卡索引 0/1/2
     private spinSpeed = 30;//唱片旋转速度（度/秒）
     private isSwitching = false;//切关动画中，防止连点
 
+    private switching = false;                     // 模式切换动画中，防连点
+    private origFrames: SpriteFrame[] = [];        // 按钮原始贴图（切回挑战模式时还原）
     private mode: ViewMode = ViewMode.Challenge;   // 当前处于哪个模式
     private challengeBg: SpriteFrame = null;       // 挑战模式的背景图（切走前记下来，切回时还原）
 
@@ -61,6 +67,9 @@ export class LevelSelectController extends Component {
 
         this.refreshRecord();//初始化，显示第一张唱片
 
+        // 记下按钮原始颜色，切回挑战模式时还原
+        this.origFrames = this.tintSprites.map((sp) => (sp ? sp.spriteFrame : null));
+
         // 记下挑战模式的原始背景（切到剧情再切回来时还原），然后按当前模式刷一遍 UI
         if (this.background) this.challengeBg = this.background.spriteFrame;
         this.applyMode();
@@ -68,8 +77,35 @@ export class LevelSelectController extends Component {
 
     // —— 模式切换：点一下按钮就在「挑战 / 剧情」之间来回切 ——
     toggleMode() {
-        this.mode = (this.mode === ViewMode.Challenge) ? ViewMode.Story : ViewMode.Challenge;
-        this.applyMode();
+        if (this.switching) return;          // 过渡中，忽略连点
+        this.switching = true;
+
+        // 没挂遮罩就退回直接切换
+        if (!this.fadeMask) {
+            this.mode = (this.mode === ViewMode.Challenge) ? ViewMode.Story : ViewMode.Challenge;
+            this.applyMode();
+            this.switching = false;
+            return;
+        }
+
+        const mask = this.fadeMask;
+        const op = mask.getComponent(UIOpacity) || mask.addComponent(UIOpacity);
+        mask.active = true;      // 先激活，否则画不出也点不到
+        op.opacity = 0;
+
+        tween(op)
+            .to(0.18, { opacity: 215 })     // 压黑
+            .call(() => {
+                // 全黑时切换，玩家看不到硬切
+                this.mode = (this.mode === ViewMode.Challenge) ? ViewMode.Story : ViewMode.Challenge;
+                this.applyMode();
+            })
+            .to(0.22, { opacity: 0 })       // 透出来
+            .call(() => {
+                mask.active = false;        // 隐藏，避免透明节点挡住点击
+                this.switching = false;
+            })
+            .start();
     }
 
     // 按当前模式刷新界面：换背景、显隐挑战模式专属节点、改按钮文字
@@ -92,7 +128,15 @@ export class LevelSelectController extends Component {
             if (n) n.active = story;
         }
 
-        // ④ 按钮文字跟随当前模式，点它即切到另一个模式
+        // ④ 按钮换图：剧情模式换成黑白版，挑战模式换回原图
+        for (let i = 0; i < this.tintSprites.length; i++) {
+            const sp = this.tintSprites[i];
+            if (!sp) continue;
+            const next = story ? this.storyFrames[i] : this.origFrames[i];
+            if (next) sp.spriteFrame = next;    // 没配就保持原样，避免变白块
+        }
+
+        // ⑤ 按钮文字跟随当前模式，点它即切到另一个模式
         if (this.modeLabel) this.modeLabel.string = story ? '剧情模式' : '挑战模式';
     }
 
@@ -154,6 +198,13 @@ export class LevelSelectController extends Component {
     // 点「书」进入第一章（只在剧情模式下有效）
     onEnterStory() {
         if (this.mode !== ViewMode.Story) return;
+
+        // 封条还在就先播解锁动画，播完再跳转
+        const seal = this.bookNode ? this.bookNode.getComponent(BookSeal) : null;
+        if (seal && seal.isLocked) {
+            seal.unlock(() => LoadingController.goto('Chapter1'));
+            return;
+        }
         LoadingController.goto('Chapter1');
     }
 
