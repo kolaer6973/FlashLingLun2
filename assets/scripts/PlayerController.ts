@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, UITransform, input, Input, EventTouch, EventKeyboard, KeyCode } from 'cc';
+import { _decorator, Component, Node, Vec3, UITransform, input, Input, EventTouch, EventKeyboard, KeyCode, tween, UIOpacity } from 'cc';
 import { LoadingController } from './LoadingController';
 const { ccclass, property } = _decorator;
 
@@ -14,6 +14,7 @@ const { ccclass, property } = _decorator;
 @ccclass('PlayerController')
 export class PlayerController extends Component {
     @property(Node) mapRoot: Node = null;   // 地图根节点（主角的父节点），点击坐标按它换算
+    @property(Node) hintNode: Node = null;   // 提示节点：玩家第一次点击后淡出隐藏
     @property speed: number = 320;          // 移动速度（像素/秒）
     @property reachDist: number = 4;        // 离目标小于这个距离就算走到了
 
@@ -30,11 +31,13 @@ export class PlayerController extends Component {
 
     private target: Vec3 | null = null;   // 当前要走到的点（null = 没在走）
     private moving = false;
+    private hintHidden = false;            // 提示是否已隐藏
     private facing = 1;                   // 1 = 朝右，-1 = 朝左
     private bobT = 0;                     // 起伏计时
     private baseScale = new Vec3(1, 1, 1);   // 记下原始缩放，翻转/起伏都以它为基准
 
     onLoad() {
+        console.log('[主角] PlayerController 已启动, 节点=' + this.node.name + ', mapRoot=' + (this.mapRoot ? this.mapRoot.name : '空'));
         this.baseScale = this.node.scale.clone();
         input.on(Input.EventType.TOUCH_END, this.onTouchEnd, this);
         input.on(Input.EventType.KEY_DOWN, this.onKeyDown, this);
@@ -44,6 +47,17 @@ export class PlayerController extends Component {
         // 一定要解绑：否则切场景后回调仍指向已销毁的节点，会报错
         input.off(Input.EventType.TOUCH_END, this.onTouchEnd, this);
         input.off(Input.EventType.KEY_DOWN, this.onKeyDown, this);
+    }
+
+    // 玩家第一次点击后，把提示淡出并隐藏
+    private dismissHint() {
+        if (this.hintHidden || !this.hintNode) return;
+        this.hintHidden = true;
+        const op = this.hintNode.getComponent(UIOpacity) || this.hintNode.addComponent(UIOpacity);
+        tween(op)
+            .to(0.35, { opacity: 0 })
+            .call(() => { if (this.hintNode) this.hintNode.active = false; })
+            .start();
     }
 
     private onTouchEnd(event: EventTouch) {
@@ -61,6 +75,7 @@ export class PlayerController extends Component {
             0
         );
         this.moving = true;
+        this.dismissHint();
     }
 
     // 临时导航：按 ESC 回选关（第一章还没有正式 UI，先留个退路）
