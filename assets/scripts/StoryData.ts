@@ -1,17 +1,11 @@
 // ============================================================
-// 第一章剧情文本（游戏文本版）
+// 第一章剧情文本（游戏版）
 //
-// 格式：
-//   speaker   说话人名字。空字符串 '' = 旁白，不显示名字、不显示立绘
-//   text      台词内容，可以写 \n 换行
-//   cg        可选。背景插画文件名（放在 assets/resources/cg/ 下，不带后缀）
-//             留空 = 沿用上一句的背景
-//   portrait  可选。立绘文件名（放在 assets/resources/portrait/ 下，不带后缀）
-//             留空 = 隐藏立绘（旁白、过渡语就该留空）
-//
-// 资源放法（必须以 assets/resources/ 开头，才能用 resources.load 按名字加载）：
-//   assets/resources/cg/ch1_fire.png
-//   assets/resources/portrait/linglun.png
+// Line 字段：
+//   speaker   说话人名；空字符串 = 旁白（无名字、无立绘）
+//   text      台词，可用 \n 换行
+//   cg        背景插画（assets/resources/cg/ 下的文件名，不带后缀）；留空 = 沿用上一句
+//   portrait  立绘节点名（场景里 DialogueBox.portraits 数组中的节点）；留空 = 不显示
 // ============================================================
 
 export interface Line {
@@ -21,39 +15,93 @@ export interface Line {
     portrait?: string;
 }
 
-/** 篝火旁醒来：第一部分剧情（出生点） */
-export const CH1_FIRE_SPAWN: Line[] = [
-    {
-        speaker: '',
-        text: '（此处待填）湖水灌进耳朵的声音，慢慢退成了风声。',
-        cg: 'ch1_fire',
-    },
-    {
-        speaker: '林沦',
-        text: '（此处待填）……这是哪里？我明明还在台上。',
-        portrait: '林沦',
-    },
-    {
-        speaker: '',
-        text: '（此处待填）掌心残留着一丝温热，像是某种东西在回应他。',
-    },
-    {
-        speaker: '林沦',
-        text: '（此处待填）音律……还在。',
-        portrait: '林沦',
-    },
+/** 开场黑屏旁白（坠崖） */
+export const CH1_OPENING_BLACK: string[] = [
+    '风灌进耳朵。',
+    '不是崖壁在往上——',
+    '是我在往下掉。',
+    '笛子……别松手……',
+    '水面在瞳孔里放大。',
+    '砰。',
 ];
 
-/** 远处篝火：第二部分剧情 */
-export const CH1_FIRE_FAR: Line[] = [
-    {
-        speaker: '',
-        text: '（此处待填）更远处的火光，隐约有身影在动。',
-        cg: 'ch1_far',
-    },
-    {
-        speaker: '？？？',
-        text: '（此处待填）别出声。',
-        portrait: 'jiling',
-    },
+/** 醒来（地图出现后的第一段对话） */
+export const CH1_OPENING: Line[] = [
+    { speaker: '', text: '伶伦是被热醒的。', cg: 'ch1_shore' },
+    { speaker: '', text: '脸颊上一阵一阵的烘烤感，像有人把暖手宝贴在他脸上，还不肯拿开。' },
+    { speaker: '', text: '他睁开眼。先看见一片星空。' },
+    { speaker: '伶伦', text: '……好看。', portrait: '伶伦' },
+    { speaker: '伶伦', text: '等等。我为什么躺在地上？', portrait: '伶伦' },
+    { speaker: '', text: '身后是静得发黑的湖水，面前是一堆篝火，再往前，是密不透光的林子。' },
+    { speaker: '伶伦', text: '冷静。先捋一下。', portrait: '伶伦' },
+    { speaker: '伶伦', text: '吹了一段不认识的谱子。掉了下去。醒来躺在这里。', portrait: '伶伦' },
+    { speaker: '伶伦', text: '……我穿越了？', portrait: '伶伦' },
+    { speaker: '伶伦', text: '客服呢。', portrait: '伶伦' },
+    { speaker: '', text: '没有人回答。' },
+    { speaker: '伶伦', text: '行吧。那我自己来。', portrait: '伶伦' },
+    { speaker: '', text: '（点击地面走动，或点击篝火）' },
+];
+
+/** 点篝火：观察火堆 + 发现玉笛（结束前自动接熊） */
+export const CH1_FIRE: Line[] = [
+    { speaker: '', text: '这火很怪。', cg: 'ch1_shore' },
+    { speaker: '', text: '柴枝整整齐齐垒着，粗的在下，细的在上，每一根长度都差不多。' },
+    { speaker: '伶伦', text: '不是随手点的火。', portrait: '伶伦' },
+    { speaker: '', text: '更像是，有人特意为他点的。' },
+    { speaker: '', text: '他低头看了看自己的腰，忽然僵住。' },
+    { speaker: '', text: '腰上挂着一支笛子。玉色的笛身，通体莹润。', cg: 'ch1_flute' },
+    { speaker: '', text: '一端系着细绳，吊着一块指甲盖大小的玉牌，上面刻着一个字。' },
+    { speaker: '', text: '伶。' },
+    { speaker: '伶伦', text: '这不是我的笛子。', portrait: '伶伦' },
+    { speaker: '', text: '他的竹笛，在落水的时候已经被冲走了。' },
+    { speaker: '伶伦', text: '……工艺不错。这个孔距，挺讲究。', portrait: '伶伦' },
+    { speaker: '', text: '他把玉笛举到唇边，想试一个音。' },
+    { speaker: '', text: '手伸到一半，停住了。' },
+    { speaker: '奶奶', text: '他还说，不能乱吹。' },
+    { speaker: '', text: '他把笛子拿开一寸，没有吹。' },
+    { speaker: '伶伦', text: '这不是害怕。是谨慎。', portrait: '伶伦' },
+];
+
+/** 熊（篝火剧情结束后自动接上） */
+export const CH1_BEAR: Line[] = [
+    { speaker: '', text: '夜很静。', cg: 'ch1_shore' },
+    { speaker: '', text: '虫鸣，水声，风吹过树梢的沙沙声。' },
+    { speaker: '', text: '这些声音之间，有一种隐隐约约的节奏。' },
+    { speaker: '伶伦', text: '我这是干嘛。在这儿给林子打拍子。', portrait: '伶伦' },
+    { speaker: '', text: '啪。' },
+    { speaker: '', text: '像一根枯枝，被踩断了。' },
+    { speaker: '伶伦', text: '……风吧。', portrait: '伶伦' },
+    { speaker: '', text: '第二声响动。更近了。' },
+    { speaker: '', text: '灌木猛地向两边分开。', cg: 'ch1_bear' },
+    { speaker: '', text: '一头棕熊。' },
+    { speaker: '', text: '伶伦的脑子一片空白。' },
+    { speaker: '', text: '手速用不上。音准用不上。背过的几千首谱子，没有一样能挡住一头熊。' },
+    { speaker: '', text: '熊低吼了一声。很低，很粗，尾音里带着一丝颤抖。' },
+    { speaker: '', text: '那不是饥饿，是惊惧。' },
+    { speaker: '', text: '对它来说，他才是闯进来的那个。' },
+    { speaker: '', text: '一个很久以前的声音，忽然从记忆深处冒了出来。' },
+    { speaker: '爷爷', text: '笛子不是用来炫技的。吹之前，先想清楚，你是在对谁说话。' },
+    { speaker: '伶伦', text: '对谁说话。', portrait: '伶伦' },
+    { speaker: '', text: '他握住了玉笛。' },
+    { speaker: '伶伦', text: '不能吹到第七小节。', portrait: '伶伦' },
+    { speaker: '', text: '熊已经冲到了三步之内。' },
+    { speaker: '', text: '他把玉笛举到唇边。' },
+];
+
+/** 收尾（战斗胜利后） */
+export const CH1_ENDING: Line[] = [
+    { speaker: '', text: '第一个音落下。清，轻，像是有人在夜里点亮了一盏很小的灯。', cg: 'ch1_play' },
+    { speaker: '', text: '笛孔里飘出一点光。淡蓝色，像一粒被风吹起来的萤火。' },
+    { speaker: '', text: '接着是第二点，第三点。它们在空中舒展开，变成一对薄得几乎透明的翅膀。' },
+    { speaker: '', text: '蝴蝶。', cg: 'ch1_butterfly' },
+    { speaker: '', text: '一只，两只，越来越多。绕着他的笛声转了一圈，齐齐朝熊飞去。' },
+    { speaker: '', text: '最前面那只，轻轻落在熊的鼻尖上。像一滴水融进水里。' },
+    { speaker: '', text: '熊的动作彻底停住了。' },
+    { speaker: '', text: '那声低吼，慢慢，慢慢地沉了下去。' },
+    { speaker: '', text: '它看了他很久。然后转过身，一步一步走回密林。' },
+    { speaker: '', text: '灌木重新合拢，棕红色的影子消失在黑暗里。' },
+    { speaker: '', text: '伶伦腿一软，一屁股坐在了地上。', cg: 'ch1_shore' },
+    { speaker: '', text: '玉牌在火光里，轻轻晃了一下。' },
+    { speaker: '伶伦', text: '刚才吹笛的时候……我没有想过任何人的评价。', portrait: '伶伦' },
+    { speaker: '', text: '这是他吹了十几年笛子，第一次。' },
 ];

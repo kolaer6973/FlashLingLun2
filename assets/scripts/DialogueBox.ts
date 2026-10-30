@@ -79,6 +79,7 @@ export class DialogueBox extends Component {
         this.index = 0;
         this.onDone = onDone || null;
         this.currentCg = '';
+        if (this.bgSprite) this.bgSprite.node.active = false;
         this.node.active = true;
         this.startLine();
     }
@@ -105,23 +106,30 @@ export class DialogueBox extends Component {
     }
 
     // ---------- 背景插画 ----------
+    // 规则：台词写了 cg 才换图；没写就沿用上一张，直到出现下一张。
     private applyCg(name?: string) {
         if (!this.bgSprite) return;
-        if (!name) {
-            this.bgSprite.node.active = false;
-            return;
-        }
-        this.bgSprite.node.active = true;
-        if (name === this.currentCg) return;   // 还是上一张，不用重载
+        if (!name) return;
+        if (name === this.currentCg) { this.bgSprite.node.active = true; return; }
         this.currentCg = name;
+        this.bgSprite.node.active = true;
         this.loadFrame('cg', name, (f) => {
-            if (f && this.bgSprite) this.bgSprite.spriteFrame = f;
+            if (!f || !this.bgSprite) return;
+            this.bgSprite.spriteFrame = f;
+            this.fadeInCg();
         });
+    }
+
+    private fadeInCg() {
+        if (!this.bgSprite) return;
+        const op = this.bgSprite.node.getComponent(UIOpacity) || this.bgSprite.node.addComponent(UIOpacity);
+        op.opacity = 0;
+        tween(op).to(0.28, { opacity: 255 }).start();
     }
 
     // ---------- 立绘 ----------
     // 场景里预先摆好所有立绘（默认 active=false），
-    // 台词写 portrait: '林沦' 就把名叫「林沦」的那个节点激活，其余关掉。
+    // 台词写 portrait: '伶伦' 就把名叫「伶伦」的那个节点激活，其余关掉。
     private applyPortrait(name?: string) {
         let shown = false;
         for (const n of this.portraits) {
