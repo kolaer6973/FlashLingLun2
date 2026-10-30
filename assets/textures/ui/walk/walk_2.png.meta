@@ -20,8 +20,8 @@
         "imageUuidOrDatabaseUri": "062694f8-b444-4461-bbaf-77f7ee79337f",
         "isUuid": true,
         "visible": false,
-        "minfilter": "linear",
-        "magfilter": "linear",
+        "minfilter": "nearest",
+        "magfilter": "nearest",
         "mipfilter": "none",
         "anisotropy": 0
       },
@@ -41,14 +41,14 @@
       "userData": {
         "trimThreshold": 1,
         "rotated": false,
-        "offsetX": -6,
-        "offsetY": -3,
-        "trimX": 93,
-        "trimY": 57,
-        "width": 177,
-        "height": 392,
-        "rawWidth": 375,
-        "rawHeight": 500,
+        "offsetX": -3,
+        "offsetY": -1,
+        "trimX": 18,
+        "trimY": 5,
+        "width": 54,
+        "height": 120,
+        "rawWidth": 96,
+        "rawHeight": 128,
         "borderTop": 0,
         "borderBottom": 0,
         "borderLeft": 0,
@@ -60,17 +60,17 @@
         "meshType": 0,
         "vertices": {
           "rawPosition": [
-            -88.5,
-            -196,
+            -27,
+            -60,
             0,
-            88.5,
-            -196,
+            27,
+            -60,
             0,
-            -88.5,
-            196,
+            -27,
+            60,
             0,
-            88.5,
-            196,
+            27,
+            60,
             0
           ],
           "indexes": [
@@ -82,33 +82,33 @@
             3
           ],
           "uv": [
-            93,
-            443,
-            270,
-            443,
-            93,
-            51,
-            270,
-            51
+            18,
+            123,
+            72,
+            123,
+            18,
+            3,
+            72,
+            3
           ],
           "nuv": [
-            0.248,
-            0.102,
-            0.72,
-            0.102,
-            0.248,
-            0.886,
-            0.72,
-            0.886
+            0.1875,
+            0.0234375,
+            0.75,
+            0.0234375,
+            0.1875,
+            0.9609375,
+            0.75,
+            0.9609375
           ],
           "minPos": [
-            -88.5,
-            -196,
+            -27,
+            -60,
             0
           ],
           "maxPos": [
-            88.5,
-            196,
+            27,
+            60,
             0
           ]
         },

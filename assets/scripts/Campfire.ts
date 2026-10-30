@@ -1,5 +1,7 @@
 import { _decorator, Component, Node, Vec3, tween, UIOpacity } from 'cc';
 import { PlayerController } from './PlayerController';
+import { DialogueBox } from './DialogueBox';
+import { CH1_FIRE_SPAWN, CH1_FIRE_FAR } from './StoryData';
 const { ccclass, property } = _decorator;
 
 /**
@@ -19,15 +21,18 @@ export class Campfire extends Component {
 
     @property(Node) visual: Node = null;    // 做呼吸缩放的子节点（放火的那层）
     @property(Node) glow: Node = null;      // 地面光晕子节点（做透明度脉动）
+    @property(DialogueBox) dialogue: DialogueBox = null;   // 对话框
+    @property({ tooltip: '0 = 出生点篝火剧情，1 = 远处篝火剧情' })
+    story: number = 0;
 
     @property({ tooltip: '玩家站在篝火右边多远（局部坐标）' })
     standOffsetX: number = 95;
     @property standOffsetY: number = 0;
 
     private busy = false;      // 正在走过去，防止重复点击
-    private arrived = false;   // 是否已触发过剧情
 
     onLoad() {
+        console.log('[篝火] 已启动, 位置=(' + this.node.position.x.toFixed(0) + ',' + this.node.position.y.toFixed(0) + ') 玩家=' + (this.player ? '有' : '空') + ' 对话框=' + (this.dialogue ? '有' : '空'));
         this.node.on(Node.EventType.TOUCH_END, this.onClick, this);
         if (this.visual) this.startBreathing();
     }
@@ -59,7 +64,8 @@ export class Campfire extends Component {
     }
 
     private onClick() {
-        if (this.busy || this.arrived || !this.player) return;
+        console.log('[篝火] 被点击');
+        if (this.busy || !this.player) return;   // 只防连点，不阻止再次触发
         this.busy = true;
 
         // 点击反馈：整体缩一下再弹回
@@ -68,23 +74,44 @@ export class Campfire extends Component {
             .to(0.14, { scale: new Vec3(1.0, 1.0, 1) })
             .start();
 
-        // 走到篝火旁边（不是走到篝火中心，否则人站在火里）
-        const target = new Vec3(
-            this.node.position.x + this.standOffsetX,
-            this.node.position.y + this.standOffsetY,
-            0
-        );
+        // 找一个能站的落脚点：优先右侧，其次上下左右各方向试一遍
+        const px = this.node.position.x;
+        const py = this.node.position.y;
+        const d = this.standOffsetX;
+        const tries = [
+            [d, this.standOffsetY], [-d, this.standOffsetY],
+            [0, d], [0, -d],
+            [d * 0.7, d * 0.7], [-d * 0.7, d * 0.7],
+            [d * 0.7, -d * 0.7], [-d * 0.7, -d * 0.7],
+        ];
+        let target = new Vec3(px + d, py + this.standOffsetY, 0);
+        for (const t of tries) {
+            const tx = px + t[0];
+            const ty = py + t[1];
+            if (this.player.isPointWalkable(tx, ty)) {
+                target = new Vec3(tx, ty, 0);
+                break;
+            }
+        }
+        console.log('[篝火] 站位 -> (' + target.x.toFixed(0) + ',' + target.y.toFixed(0) + ')');
 
         this.player.walkTo(target, () => {
-            this.arrived = true;
-            this.busy = false;
-            this.onReach();
+            this.onReach();      // busy 在剧情播完后才释放
         });
     }
 
-    /** 到达篝火旁：这里以后接对话框 */
+    /** 到达篝火旁：弹出对话 */
     private onReach() {
-        console.log('[篝火] 主角已到达，触发剧情');
-        // TODO: 下一步接 DialogueBox
+        if (!this.dialogue) {
+            console.log('[篝火] 没挂对话框，跳过剧情');
+            this.busy = false;
+            return;
+        }
+        const lines = this.story === 1 ? CH1_FIRE_FAR : CH1_FIRE_SPAWN;
+        this.dialogue.show(lines, () => {
+            console.log('[篝火] 剧情播放完毕');
+            this.busy = false;   // 剧情结束，允许再次点击
+            // 以后这里接：进音游战斗 / 解锁下一个地标
+        });
     }
 }

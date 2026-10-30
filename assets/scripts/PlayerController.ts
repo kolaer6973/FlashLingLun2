@@ -149,6 +149,7 @@ export class PlayerController extends Component {
             Math.min(this.maxY, Math.max(this.minY, local.y)),
             0
         );
+        console.log('[主角] 点击地图 -> 目标=(' + clamped.x.toFixed(0) + ',' + clamped.y.toFixed(0) + ')');
         this.target = this.resolveTarget(clamped);
         this.moving = true;
         this.dismissHint();
@@ -240,6 +241,11 @@ export class PlayerController extends Component {
             base.y * bobFactor,
             base.z
         );
+    }
+
+    /** 给外部查询某个点能不能站（篝火找站位用） */
+    public isPointWalkable(x: number, y: number): boolean {
+        return this.isWalkableAt(x, y);
     }
 
     /** 是否正在移动（剧情触发判定用） */
