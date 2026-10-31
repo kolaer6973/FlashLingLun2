@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Label, UIOpacity, tween } from 'cc';
+import { _decorator, Component, Node, Label, UIOpacity, tween, isValid } from 'cc';
 const { ccclass, property } = _decorator;
 
 /**
@@ -37,7 +37,7 @@ export class BlackNarration extends Component {
     }
 
     onDestroy() {
-        this.node.off(Node.EventType.TOUCH_END, this.onClick, this);
+         if (isValid(this.node)) this.node.off(Node.EventType.TOUCH_END, this.onClick, this);
     }
 
     /** 播放一段黑屏旁白，全部结束后淡出并回调 */
@@ -131,6 +131,20 @@ export class BlackNarration extends Component {
     }
 
     /** 是否正在演出 */
+    /** 只把画面淡到全黑，不放文字（用于进战斗、转场） */
+    public fadeToBlack(duration: number, onDone?: () => void) {
+        this.node.active = true;
+        this.typing = false;
+        if (this.textLabel) this.textLabel.string = '';
+        if (this.hintNode) this.hintNode.active = false;
+        const op = this.node.getComponent(UIOpacity) || this.node.addComponent(UIOpacity);
+        op.opacity = 0;
+        tween(op)
+            .to(duration, { opacity: 255 })
+            .call(() => { if (onDone) onDone(); })
+            .start();
+    }
+
     public get isPlaying(): boolean {
         return this.node.active;
     }

@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, UITransform, input, Input, EventTouch, EventKeyboard, KeyCode, tween, UIOpacity, Sprite, SpriteFrame } from 'cc';
+import { _decorator, Component, Node, Vec3, UITransform, input, Input, EventTouch, EventKeyboard, KeyCode, tween, UIOpacity, Sprite, SpriteFrame, isValid } from 'cc';
 import { LoadingController } from './LoadingController';
 import { isWalkable } from './WalkMask';
 const { ccclass, property } = _decorator;
@@ -80,9 +80,12 @@ export class PlayerController extends Component {
     }
 
     onDestroy() {
-        // 一定要解绑：否则切场景后回调仍指向已销毁的节点，会报错
-        if (this.clickArea) this.clickArea.off(Node.EventType.TOUCH_END, this.onTouchEnd, this);
-        input.off(Input.EventType.KEY_DOWN, this.onKeyDown, this);
+        // 切场景时节点会先被销毁，这里的引用随时可能是 null / 已销毁，必须严格判断
+        if (isValid(this.clickArea, true)) {
+            this.clickArea.off(Node.EventType.TOUCH_END, this.onTouchEnd, this);
+        }
+        // input 是全局单例，和节点销毁无关，必须每次都解绑（否则监听泄漏到下一个场景）
+        if (input) input.off(Input.EventType.KEY_DOWN, this.onKeyDown, this);
     }
 
     // 玩家第一次点击后，把提示淡出并隐藏

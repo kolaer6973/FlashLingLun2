@@ -13,6 +13,7 @@ export interface Line {
     text: string;
     cg?: string;
     portrait?: string;
+    shake?: boolean;   // 这一句播放时画面震动
 }
 
 /** 开场黑屏旁白（坠崖） */
@@ -104,4 +105,59 @@ export const CH1_ENDING: Line[] = [
     { speaker: '', text: '玉牌在火光里，轻轻晃了一下。' },
     { speaker: '伶伦', text: '刚才吹笛的时候……我没有想过任何人的评价。', portrait: '伶伦' },
     { speaker: '', text: '这是他吹了十几年笛子，第一次。' },
+];
+/** 第二章：车队遇袭（地图上第二个剧情点触发） */
+export const CH1_CONVOY: Line[] = [
+    { speaker: '', text: '远处传来一声闷响。', cg: 'ch1_shore' },
+    { speaker: '伶伦', text: '……什么声音。', portrait: '伶伦' },
+    { speaker: '', text: '接着是第二声。金属撞在一起的声音。' },
+    { speaker: '伶伦', text: '有人在打架？', portrait: '伶伦' },
+    { speaker: '', text: '他往林子里走了几步。火光从树缝里透出来。', cg: 'ch2_convoy' },
+    { speaker: '', text: '一辆马车歪在路中间。货箱被劈开，木片撒了一地。' },
+    { speaker: '', text: '火把掉在地上，烧着一小片草。' },
+    { speaker: '伶伦', text: '……人。', portrait: '伶伦' },
+    { speaker: '', text: '地上躺着人。不止一个。' },
+    { speaker: '伶伦', text: '喂！', portrait: '伶伦' },
+    { speaker: '', text: '没有人回答。' },
+    { speaker: '伶伦', text: '……', portrait: '伶伦' },
+    { speaker: '', text: '他退了一步。脚下的枯枝响了。' },
+    { speaker: '', text: '林子里的动静，停了。' },
+    { speaker: '伶伦', text: '完了。', portrait: '伶伦' },
+];
+
+/** 第三章：面纱女子（对话后进入她那一战） */
+export const CH1_TIANYU: Line[] = [
+    { speaker: '', text: '一个人影站在车顶上。', cg: 'ch3_tianyu' },
+    { speaker: '', text: '蒙着面纱。手里一把窄刀。' },
+    { speaker: '面纱女子', text: '还有一个。' },
+    { speaker: '伶伦', text: '我不是——我只是路过——', portrait: '伶伦' },
+    { speaker: '', text: '她没有听。' },
+    { speaker: '', text: '刀出鞘的声音很轻。' },
+    { speaker: '伶伦', text: '……跑不掉。', portrait: '伶伦' },
+    { speaker: '', text: '他的手摸到了腰间的玉笛。' },
+    { speaker: '伶伦', text: '不能吹到第七小节。', portrait: '伶伦' },
+    { speaker: '', text: '他举起玉笛。' },
+];
+
+/** 打完面纱女子：律蝶制住她 → 揭面纱 → 她留下刀走了 */
+export const CH1_TIANYU_END: Line[] = [
+    { speaker: '', text: '笛声没有停。', cg: 'ch3_subdue' },
+    { speaker: '', text: '蓝色的蝴蝶从笛孔里涌出来，围着她转。' },
+    { speaker: '', text: '她的动作僵住了。' },
+    { speaker: '面纱女子', text: '……这是什么。' },
+    { speaker: '', text: '刀停在半空。' },
+    { speaker: '', text: '风把她的面纱掀开了一角。', cg: 'ch3_face' },
+    { speaker: '伶伦', text: '……', portrait: '伶伦' },
+    { speaker: '', text: '很年轻。比他想象中年轻得多。' },
+    { speaker: '面纱女子', text: '……你看什么。' },
+    { speaker: '', text: '远处传来一声呼哨。' },
+    { speaker: '高大的男人', text: '撤。' },
+    { speaker: '', text: '她退了半步。' },
+    { speaker: '面纱女子', text: '今天就到这儿。' },
+    { speaker: '', text: '刀插在地上。她转身，消失在林子里。', cg: 'ch3_blade' },
+    { speaker: '', text: '伶伦坐在原地，很久没有动。' },
+    { speaker: '伶伦', text: '……我刚才，差点死了。', portrait: '伶伦' },
+    { speaker: '', text: '刀还插在地上。刀身很薄，映着一点月光。' },
+    { speaker: '', text: '他忽然想到：她明明可以杀了他。' },
+    { speaker: '', text: '第一章 完' },
 ];

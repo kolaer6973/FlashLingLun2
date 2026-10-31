@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Label, Sprite, SpriteFrame, UITransform, UIOpacity, tween, resources } from 'cc';
+import { _decorator, Component, Node, Label, Sprite, SpriteFrame, UITransform, UIOpacity, tween, Tween, Vec3, resources, isValid } from 'cc';
 import { Line } from './StoryData';
 const { ccclass, property } = _decorator;
 
@@ -66,7 +66,7 @@ export class DialogueBox extends Component {
     }
 
     onDestroy() {
-        this.node.off(Node.EventType.TOUCH_END, this.onClick, this);
+         if (isValid(this.node)) this.node.off(Node.EventType.TOUCH_END, this.onClick, this);
     }
 
     /** 播放一段对话，播完执行回调 */
@@ -89,11 +89,15 @@ export class DialogueBox extends Component {
     }
 
     // ---------- 每一句 ----------
+    /** 每句开始时回调（StoryFlow 用来做震动等演出） */
+    public onLineStart: ((line: any) => void) | null = null;
+
     private startLine() {
         const line = this.lines[this.index];
 
         if (this.speakerLabel) this.speakerLabel.string = line.speaker || '';
 
+        if (this.onLineStart) this.onLineStart(line);
         this.applyCg(line.cg);
         this.applyPortrait(line.portrait);
 
@@ -118,6 +122,22 @@ export class DialogueBox extends Component {
             this.bgSprite.spriteFrame = f;
             this.fadeInCg();
         });
+    }
+
+    /** 画面震动（插画抖一下） */
+    public shake(strength: number = 14, duration: number = 0.45) {
+        if (!this.bgSprite) return;
+        const n = this.bgSprite.node;
+        const p = n.position.clone();
+        const s = strength;
+        Tween.stopAllByTarget(n);
+        tween(n)
+            .to(0.04, { position: new Vec3(p.x + s, p.y + s * 0.6, 0) })
+            .to(0.04, { position: new Vec3(p.x - s * 0.85, p.y - s * 0.7, 0) })
+            .to(0.04, { position: new Vec3(p.x + s * 0.6, p.y + s * 0.45, 0) })
+            .to(0.05, { position: new Vec3(p.x - s * 0.35, p.y - s * 0.3, 0) })
+            .to(duration * 0.4, { position: p })
+            .start();
     }
 
     private fadeInCg() {

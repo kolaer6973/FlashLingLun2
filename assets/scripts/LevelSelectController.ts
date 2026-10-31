@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, Button, director, tween, Vec3, Label, sys, UIOpacity } from 'cc';
+import { _decorator, Component, Node, Sprite, SpriteFrame, Button, director, tween, Vec3, Label, sys, UIOpacity, AudioSource, AudioClip, resources } from 'cc';
 import { LoadingController } from './LoadingController';
 import { BookSeal } from './BookSeal';
 import { Marquee } from './Marquee';
@@ -31,8 +31,8 @@ export class LevelSelectController extends Component {
     @property(Marquee) scoreMarquee: Marquee = null;  // 分数那行的滚动体
 
     // 每关固定信息（歌名/作者/难度星），在编辑器面板里一条条填，下标对应关卡 1/2/3
-    @property([String]) songNames: string[] = ['《第一关》', '《第二关》', '《寄明月》'];
-    @property([String]) songAuthors: string[] = ['七朵乐队', '待定', '待定'];
+    @property([String]) songNames: string[] = ['《第一关》', '《第二关》', '《快刀》'];
+    @property([String]) songAuthors: string[] = ['七朵乐队', '待定', 'AI 生成'];
     @property([Number]) songStars: number[] = [3, 4, 5];
 
     // —— 挑战 / 剧情 模式切换 ——
@@ -56,6 +56,14 @@ export class LevelSelectController extends Component {
     private mode: ViewMode = ViewMode.Challenge;   // 当前处于哪个模式
     private challengeBg: SpriteFrame = null;       // 挑战模式的背景图（切走前记下来，切回时还原）
 
+    // 记住上次停在哪个模式：从第一章回选关时，要落回剧情模式
+    static lastModeStory: boolean = false;
+
+    private bgmSource: AudioSource = null;   // 剧情模式的主题背景乐
+    private storyClip: AudioClip = null;
+    private challengeClip: AudioClip = null;
+    private bgmLoading = false;
+
     start() {
         //三个按钮各自按一个监听事件(点击)
         this.leftBtn.node.on(Button.EventType.CLICK, this.onPrev,this);
@@ -72,6 +80,12 @@ export class LevelSelectController extends Component {
 
         // 记下挑战模式的原始背景（切到剧情再切回来时还原），然后按当前模式刷一遍 UI
         if (this.background) this.challengeBg = this.background.spriteFrame;
+
+        // 从第一章回来时，恢复上次的模式（不然会掉回挑战模式，书看不见）
+        if (LevelSelectController.lastModeStory && this.mode !== ViewMode.Story) {
+            this.mode = ViewMode.Story;
+            this.applyMode();
+        }
         this.applyMode();
     }
 
@@ -110,6 +124,7 @@ export class LevelSelectController extends Component {
 
     // 按当前模式刷新界面：换背景、显隐挑战模式专属节点、改按钮文字
     applyMode() {
+        LevelSelectController.lastModeStory = (this.mode === ViewMode.Story);
         const story = (this.mode === ViewMode.Story);
 
         // ① 背景：剧情模式换成剧情背景；storyBg 没拖进来时保持原图，避免背景变白
@@ -138,6 +153,37 @@ export class LevelSelectController extends Component {
 
         // ⑤ 按钮文字跟随当前模式，点它即切到另一个模式
         if (this.modeLabel) this.modeLabel.string = story ? '剧情模式' : '挑战模式';
+
+        // ⑥ 剧情模式播放本关主题乐，挑战模式静音
+        this.updateBgm(story);
+    }
+
+    // 选关的背景乐：挑战/剧情各一首，按模式切换
+    private updateBgm(story: boolean) {
+        const name = story ? 'select_story' : 'select_challenge';
+        const cached = story ? this.storyClip : this.challengeClip;
+        if (cached) { this.playBgmClip(cached); return; }
+        if (this.bgmLoading === name) return;   // 已经在加载同一首
+        this.bgmLoading = name;
+        resources.load('audio/' + name, AudioClip, (err, clip) => {
+            this.bgmLoading = '';
+            if (err || !clip) { console.log('[选关] BGM 加载失败: ' + name); return; }
+            if (story) this.storyClip = clip; else this.challengeClip = clip;
+            this.playBgmClip(clip);
+        });
+    }
+
+    private playBgmClip(clip: AudioClip) {
+        if (!this.bgmSource) {
+            this.bgmSource = this.getComponent(AudioSource) || this.addComponent(AudioSource);
+            this.bgmSource.loop = true;
+            this.bgmSource.volume = 0.4;
+        }
+        if (this.bgmSource.clip !== clip) {
+            this.bgmSource.stop();
+            this.bgmSource.clip = clip;
+        }
+        if (!this.bgmSource.playing) this.bgmSource.play();
     }
 
     onPrev(){//点左箭头上一关

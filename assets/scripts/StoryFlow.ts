@@ -2,16 +2,21 @@ import { _decorator, Component, Node } from 'cc';
 import { BlackNarration } from './BlackNarration';
 import { DialogueBox } from './DialogueBox';
 import { PlayerController } from './PlayerController';
-import { CH1_OPENING_BLACK, CH1_OPENING, CH1_FIRE, CH1_BEAR, CH1_ENDING } from './StoryData';
+import { LoadingController } from './LoadingController';
+import { ChapterProgress } from './ChapterProgress';
+import {
+    CH1_OPENING_BLACK, CH1_OPENING, CH1_FIRE, CH1_BEAR, CH1_ENDING,
+    CH1_CONVOY, CH1_TIANYU, CH1_TIANYU_END
+} from './StoryData';
 const { ccclass, property } = _decorator;
 
 /**
  * 第一章流程控制。
  *
- * 流程：
- *   黑屏旁白（坠崖）→ 淡出 → 醒来对话 → 允许移动
- *   点篝火 → 篝火剧情（火堆 + 玉笛）→ 自动接熊 → 战斗
- *   战斗胜利回到本场景 → 收尾对话 → 回选关
+ *   第一次进：黑屏旁白 → 醒来对话 → 自由探索（篝火气泡）
+ *   点篝火：火堆+玉笛 → 熊出场（震动）→ 淡黑 → 棕熊战
+ *   打赢回来：熊离开的收尾 → 自由探索
+ *   打输了：重进本场景直接进探索，不重播开场
  */
 @ccclass('StoryFlow')
 export class StoryFlow extends Component {
@@ -19,80 +24,118 @@ export class StoryFlow extends Component {
     @property(DialogueBox) dialogue: DialogueBox = null;
     @property(PlayerController) player: PlayerController = null;
 
-    @property([Node]) bubbles: Node[] = [];   // 所有提示气泡；开场前先藏起来
-    @property(Node) moveHint: Node = null;    // 「点击地面移动」提示
+    @property(Node) fireBubble: Node = null;
+    @property(Node) convoyBubble: Node = null;
+    @property(Node) moveHint: Node = null;
 
-    private started = false;
+    @property({ tooltip: '第二条线（车队→面纱女子）做完后再打开' })
+    enableConvoy: boolean = false;
 
     start() {
+        this.wireEffects();
+
+        // ① 面纱女子也打赢了 → 播第一章收尾 → 回选关
+        if (ChapterProgress.tianyuDefeated) {
+            this.lockPlayer();
+            this.showDialogue(CH1_TIANYU_END, () => LoadingController.goto('LevelSelect'));
+            return;
+        }
+
+        // ② 棕熊打完了 → 播「熊离开」的收尾
+        if (ChapterProgress.bearDefeated) {
+            this.lockPlayer();
+            this.showDialogue(CH1_ENDING, () => {
+                this.setCanMove(true);
+                if (this.enableConvoy && this.convoyBubble) this.convoyBubble.active = true;
+                if (this.moveHint) this.moveHint.active = true;
+            });
+            return;
+        }
+
+        // ③ 看过开场但还没打赢（上次战败）→ 直接进探索
+        if (ChapterProgress.sawOpening) {
+            this.enterExplore();
+            return;
+        }
+
+        // ④ 第一次进来 → 开场
         this.playOpening();
     }
 
     // ---------- 开场 ----------
     private playOpening() {
-        this.started = true;
-        this.setCanMove(false);
-        this.setBubbles(false);
-        if (this.moveHint) this.moveHint.active = false;
-
+        this.lockPlayer();
         if (!this.narration) {
-            this.playOpeningDialogue();
+            this.showDialogue(CH1_OPENING, () => this.enterExplore());
             return;
         }
         this.narration.play(CH1_OPENING_BLACK, () => {
-            this.playOpeningDialogue();
+            this.showDialogue(CH1_OPENING, () => this.enterExplore());
         });
     }
 
-    private playOpeningDialogue() {
-        if (!this.dialogue) {
-            this.enterExplore();
-            return;
-        }
-        this.dialogue.show(CH1_OPENING, () => {
-            this.enterExplore();
-        });
-    }
-
-    /** 进入自由探索：可以走动了，气泡亮起来 */
     private enterExplore() {
+        ChapterProgress.sawOpening = true;
         this.setCanMove(true);
-        this.setBubbles(true);
+        if (this.fireBubble) this.fireBubble.active = true;
+        if (this.convoyBubble) this.convoyBubble.active = false;
         if (this.moveHint) this.moveHint.active = true;
     }
 
-    // ---------- 点篝火后由 Campfire 调用 ----------
+    // ---------- 篝火：火堆 + 玉笛 → 熊 → 棕熊战 ----------
     public playFireStory(onFinish?: () => void) {
-        if (!this.dialogue) { if (onFinish) onFinish(); return; }
-        this.dialogue.show(CH1_FIRE, () => {
-            if (onFinish) onFinish();
+        this.showDialogue(CH1_FIRE, () => {
+            this.showDialogue(CH1_BEAR, () => {
+                if (onFinish) onFinish();
+                this.enterBattle('BossBear');
+            });
         });
     }
 
-    // ---------- 篝火剧情结束后：接熊 ----------
-    public playBearStory(onFinish?: () => void) {
-        if (!this.dialogue) { if (onFinish) onFinish(); return; }
-        this.dialogue.show(CH1_BEAR, () => {
-            if (onFinish) onFinish();
+    // ---------- 车队：遇袭 → 面纱女子 → 面纱女子战（暂时关闭）----------
+    public playConvoyStory(onFinish?: () => void) {
+        if (!this.enableConvoy) { if (onFinish) onFinish(); return; }
+        this.lockPlayer();
+        this.showDialogue(CH1_CONVOY, () => {
+            this.showDialogue(CH1_TIANYU, () => {
+                if (onFinish) onFinish();
+                this.enterBattle('BossTianyu');
+            });
         });
     }
 
-    // ---------- 战斗胜利后：收尾 ----------
-    public playEnding(onFinish?: () => void) {
-        if (!this.dialogue) { if (onFinish) onFinish(); return; }
-        this.dialogue.show(CH1_ENDING, () => {
-            if (onFinish) onFinish();
-        });
+    // ---------- 战斗 ----------
+    public enterBattle(scene: string) {
+        // 先淡到黑屏再切场景，避免硬切
+        if (this.narration) {
+            this.narration.fadeToBlack(0.5, () => LoadingController.goto(scene));
+        } else {
+            LoadingController.goto(scene);
+        }
     }
 
     // ---------- 工具 ----------
+    private showDialogue(lines: any[], onDone?: () => void) {
+        if (!this.dialogue) { if (onDone) onDone(); return; }
+        this.dialogue.show(lines, onDone);
+    }
+
+    private lockPlayer() {
+        this.setCanMove(false);
+        if (this.fireBubble) this.fireBubble.active = false;
+        if (this.convoyBubble) this.convoyBubble.active = false;
+        if (this.moveHint) this.moveHint.active = false;
+    }
+
     private setCanMove(v: boolean) {
         if (this.player) this.player.canMove = v;
     }
 
-    private setBubbles(v: boolean) {
-        for (const b of this.bubbles) {
-            if (b) b.active = v;
-        }
+    /** 把「每句开始」回调接到演出上（画面震动） */
+    private wireEffects() {
+        if (!this.dialogue) return;
+        this.dialogue.onLineStart = (line: any) => {
+            if (line && line.shake) this.dialogue.shake(16, 0.45);
+        };
     }
 }

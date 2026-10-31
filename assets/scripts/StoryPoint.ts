@@ -1,23 +1,30 @@
-import { _decorator, Component, Node, Vec3, tween, UIOpacity } from 'cc';
+import { _decorator, Component, Node, Vec3, tween, UIOpacity, isValid } from 'cc';
 import { PlayerController } from './PlayerController';
 import { StoryFlow } from './StoryFlow';
 const { ccclass, property } = _decorator;
 
 /**
- * 篝火地标：可点击的剧情入口。
+ * 剧情点：地图上可以点击、会触发剧情的地标。
  *
- * 交互：点击 → 藏掉气泡 → 主角走到篝火旁 → 到达后交给 StoryFlow 播剧情。
+ * 交互：点击 → 藏掉气泡 → 主角走过去 → 到达后交给 StoryFlow 播对应剧情。
+ *
+ * pointId 决定播哪一段：
+ *   'fire'   篝火（第一章开头：火堆 + 玉笛 → 棕熊 → 战斗）
+ *   'convoy' 车队（第二章：遇袭 → 面纱女子 → 战斗）
  */
-@ccclass('Campfire')
-export class Campfire extends Component {
+@ccclass('StoryPoint')
+export class StoryPoint extends Component {
+    @property({ tooltip: "剧情点 id：fire = 篝火，convoy = 车队" })
+    pointId: string = 'fire';
+
     @property(PlayerController) player: PlayerController = null;
     @property(StoryFlow) flow: StoryFlow = null;
 
-    @property(Node) visual: Node = null;
-    @property(Node) glow: Node = null;
-    @property(Node) bubble: Node = null;
+    @property(Node) visual: Node = null;   // 会呼吸的主体（篝火的火苗）；没有就留空
+    @property(Node) glow: Node = null;     // 光晕
+    @property(Node) bubble: Node = null;   // 上方的感叹号
 
-    @property({ tooltip: '玩家站在篝火右边多远' })
+    @property({ tooltip: '玩家站在目标点多远' })
     standOffsetX: number = 85;
     @property standOffsetY: number = 0;
 
@@ -29,7 +36,7 @@ export class Campfire extends Component {
     }
 
     onDestroy() {
-        this.node.off(Node.EventType.TOUCH_END, this.onClick, this);
+        if (isValid(this.node)) this.node.off(Node.EventType.TOUCH_END, this.onClick, this);
     }
 
     private startBreathing() {
@@ -57,10 +64,8 @@ export class Campfire extends Component {
         if (this.busy || !this.player) return;
         this.busy = true;
 
-        // 点过就藏掉气泡
         if (this.bubble && this.bubble.active) this.bubble.active = false;
 
-        // 点击反馈
         tween(this.node)
             .to(0.08, { scale: new Vec3(0.92, 0.92, 1) })
             .to(0.14, { scale: new Vec3(1, 1, 1) })
@@ -89,16 +94,18 @@ export class Campfire extends Component {
 
     private onReach() {
         if (!this.flow) {
-            console.log('[篝火] 没挂 StoryFlow，跳过剧情');
+            console.log('[剧情点] 没挂 StoryFlow，跳过');
             this.busy = false;
             return;
         }
-        // 篝火剧情 → 熊剧情 → （下一版）进战斗
-        this.flow.playFireStory(() => {
-            this.flow.playBearStory(() => {
-                console.log('[篝火] 熊剧情结束，下一步进战斗');
+        if (this.pointId === 'convoy') {
+            this.flow.playConvoyStory(() => {
                 this.busy = false;
             });
-        });
+        } else {
+            this.flow.playFireStory(() => {
+                this.busy = false;
+            });
+        }
     }
 }

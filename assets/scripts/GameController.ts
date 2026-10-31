@@ -1,6 +1,7 @@
 import { _decorator, Component, Node, Prefab, instantiate, NodePool, Vec3, input, Input, KeyCode, EventKeyboard, Label, AudioClip, AudioSource, Sprite, SpriteFrame, UITransform, UIOpacity, tween, resources, Tween, director, Slider, sys } from 'cc';
 import { Note } from './Note';
 import { LoadingController } from './LoadingController';
+import { ChapterProgress } from './ChapterProgress';
 
 const { ccclass, property } = _decorator;
 
@@ -54,6 +55,10 @@ export class GameController extends Component {
     @property(Label)
     successLabel: Label = null;    // 成功特效文字（判定类型+分数，放 combo 下面）
 
+    @property returnScene: string = 'LevelSelect';   // 结算后回哪个场景
+    @property bossMode: boolean = false;             // BOSS 战：赢了标记章节进度并回剧情场景
+    @property bossKey: string = 'bear';           // BOSS 标识：bear / tianyu
+
     @property
     bpm: number = 148;   // 背景乐 BPM（每分钟拍数），调到大致合拍即可
 
@@ -84,6 +89,7 @@ export class GameController extends Component {
     private lightDotFrame: SpriteFrame = null; // 消除特效散出的光点贴图
 
     private paused = false;   // 是否暂停
+    private passedLast = false;   // 上一局是否通关（结算返回时用）
 
     private perfectCount = 0;   // Perfect 次数
     private greatCount = 0;     // Great 次数
@@ -416,7 +422,14 @@ export class GameController extends Component {
     // 返回选关：先恢复再切场景（不恢复的话下个场景还是暂停状态）
     returnToSelect() {
         director.resume();
-        LoadingController.goto('LevelSelect');
+        if (this.bossMode) {
+            if (this.bossKey === 'tianyu') {
+                ChapterProgress.tianyuDefeated = this.passedLast;
+            } else {
+                ChapterProgress.bearDefeated = this.passedLast;
+            }
+        }
+        LoadingController.goto(this.returnScene);
     }
 
     // 在 pos 位置向四周散出 6 颗光点，飞出去并逐渐消失
@@ -517,6 +530,7 @@ export class GameController extends Component {
         this.clearNotes();                                            // 清掉还在下落的音符
         // 只有「通关」（时间到且分数达标）才记录最高分；失败/分数不够只记录上次分
         const passed = timeUp && this.score >= this.passScore;
+        this.passedLast = passed;
         this.saveScore(passed);
 
         // 判断三种结局
@@ -557,3 +571,4 @@ export class GameController extends Component {
         }
     }
 }
+
