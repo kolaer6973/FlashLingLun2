@@ -1,6 +1,7 @@
 import { _decorator, Component, Node, Vec3, tween, UIOpacity, isValid } from 'cc';
 import { PlayerController } from './PlayerController';
 import { StoryFlow } from './StoryFlow';
+import { ChapterProgress } from './ChapterProgress';
 const { ccclass, property } = _decorator;
 
 /**
@@ -61,6 +62,10 @@ export class StoryPoint extends Component {
     }
 
     private onClick() {
+        // 这一处的剧情已经过完了，不再触发（点空地也不该重播）
+        if (this.pointId === 'fire' && ChapterProgress.bearDefeated) return;
+        if (this.pointId === 'convoy' && ChapterProgress.tianyuDefeated) return;
+
         if (this.busy || !this.player) return;
         this.busy = true;
 
