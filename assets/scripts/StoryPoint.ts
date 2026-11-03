@@ -7,11 +7,11 @@ const { ccclass, property } = _decorator;
 /**
  * 剧情点：地图上可以点击、会触发剧情的地标。
  *
- * 交互：点击 → 藏掉气泡 → 主角走过去 → 到达后交给 StoryFlow 播对应剧情。
+ * 交互：点击 → 藏掉气泡 → 主角走过去 → 到达后：
+ *   · 剧情还没看过 → 播对应剧情
+ *   · 已经看过了   → 只弹一句提示（「火还在烧着，但是什么都没有了」）
  *
- * pointId 决定播哪一段：
- *   'fire'   篝火（第一章开头：火堆 + 玉笛 → 棕熊 → 战斗）
- *   'convoy' 车队（第二章：遇袭 → 面纱女子 → 战斗）
+ * pointId：'fire' 篝火 / 'convoy' 车队
  */
 @ccclass('StoryPoint')
 export class StoryPoint extends Component {
@@ -21,9 +21,9 @@ export class StoryPoint extends Component {
     @property(PlayerController) player: PlayerController = null;
     @property(StoryFlow) flow: StoryFlow = null;
 
-    @property(Node) visual: Node = null;   // 会呼吸的主体（篝火的火苗）；没有就留空
-    @property(Node) glow: Node = null;     // 光晕
-    @property(Node) bubble: Node = null;   // 上方的感叹号
+    @property(Node) visual: Node = null;
+    @property(Node) glow: Node = null;
+    @property(Node) bubble: Node = null;
 
     @property({ tooltip: '玩家站在目标点多远' })
     standOffsetX: number = 85;
@@ -61,11 +61,13 @@ export class StoryPoint extends Component {
         }
     }
 
-    private onClick() {
-        // 这一处的剧情已经过完了，不再触发（点空地也不该重播）
-        if (this.pointId === 'fire' && ChapterProgress.bearDefeated) return;
-        if (this.pointId === 'convoy' && ChapterProgress.tianyuDefeated) return;
+    /** 这处剧情是不是已经过完了 */
+    private isDone(): boolean {
+        if (this.pointId === 'convoy') return ChapterProgress.tianyuDefeated;
+        return ChapterProgress.bearDefeated;
+    }
 
+    private onClick() {
         if (this.busy || !this.player) return;
         this.busy = true;
 
@@ -76,7 +78,20 @@ export class StoryPoint extends Component {
             .to(0.14, { scale: new Vec3(1, 1, 1) })
             .start();
 
-        // 找一个能站的落脚点
+        this.walkTo(() => {
+            this.busy = false;
+            if (!this.flow) return;
+            if (this.isDone()) {
+                this.flow.showEmptyHint(this.pointId);
+                return;
+            }
+            if (this.pointId === 'convoy') this.flow.playConvoyStory();
+            else this.flow.playFireStory();
+        });
+    }
+
+    /** 走到这个剧情点旁边，到了再执行 cb */
+    private walkTo(cb: () => void) {
         const px = this.node.position.x;
         const py = this.node.position.y;
         const d = this.standOffsetX;
@@ -93,24 +108,6 @@ export class StoryPoint extends Component {
                 break;
             }
         }
-
-        this.player.walkTo(target, () => this.onReach());
-    }
-
-    private onReach() {
-        if (!this.flow) {
-            console.log('[剧情点] 没挂 StoryFlow，跳过');
-            this.busy = false;
-            return;
-        }
-        if (this.pointId === 'convoy') {
-            this.flow.playConvoyStory(() => {
-                this.busy = false;
-            });
-        } else {
-            this.flow.playFireStory(() => {
-                this.busy = false;
-            });
-        }
+        this.player.walkTo(target, cb);
     }
 }

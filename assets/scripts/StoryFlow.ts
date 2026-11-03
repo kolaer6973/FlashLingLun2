@@ -3,10 +3,11 @@ import { BlackNarration } from './BlackNarration';
 import { DialogueBox } from './DialogueBox';
 import { PlayerController } from './PlayerController';
 import { LoadingController } from './LoadingController';
+import { BattleConfig } from './BattleConfig';
 import { ChapterProgress } from './ChapterProgress';
 import {
     CH1_OPENING_BLACK, CH1_OPENING, CH1_FIRE, CH1_BEAR, CH1_ENDING,
-    CH1_CONVOY, CH1_TIANYU, CH1_TIANYU_END
+    CH1_CONVOY, CH1_TIANYU, CH1_TIANYU_END, CH1_EMPTY_HINT
 } from './StoryData';
 const { ccclass, property } = _decorator;
 
@@ -26,6 +27,7 @@ export class StoryFlow extends Component {
 
     @property(Node) fireBubble: Node = null;
     @property(Node) convoyBubble: Node = null;
+    @property(Node) convoyPoint: Node = null;   // 第二处剧情点（篝火视觉），棕熊打完后才出现
     @property(Node) moveHint: Node = null;
 
     @property({ tooltip: '第二条线（车队→面纱女子）做完后再打开' })
@@ -36,8 +38,14 @@ export class StoryFlow extends Component {
 
         // ① 面纱女子也打赢了 → 播第一章收尾 → 回选关
         if (ChapterProgress.tianyuDefeated) {
-            this.lockPlayer();
-            this.showDialogue(CH1_TIANYU_END, () => LoadingController.goto('LevelSelect'));
+            // 收尾只演一次；之后可以自由回地图逛
+            if (!ChapterProgress.sawEnding) {
+                ChapterProgress.sawEnding = true;
+                this.lockPlayer();
+                this.showDialogue(CH1_TIANYU_END, () => LoadingController.goto('LevelSelect'));
+                return;
+            }
+            this.enterExplore();
             return;
         }
 
@@ -47,6 +55,7 @@ export class StoryFlow extends Component {
             this.showDialogue(CH1_ENDING, () => {
                 this.setCanMove(true);
                 if (this.enableConvoy && this.convoyBubble) this.convoyBubble.active = true;
+                if (this.enableConvoy && this.convoyPoint) this.convoyPoint.active = true;
                 if (this.moveHint) this.moveHint.active = true;
             });
             return;
@@ -79,6 +88,7 @@ export class StoryFlow extends Component {
         this.setCanMove(true);
         if (this.fireBubble) this.fireBubble.active = true;
         if (this.convoyBubble) this.convoyBubble.active = false;
+        if (this.convoyPoint) this.convoyPoint.active = false;
         if (this.moveHint) this.moveHint.active = true;
     }
 
@@ -87,7 +97,7 @@ export class StoryFlow extends Component {
         this.showDialogue(CH1_FIRE, () => {
             this.showDialogue(CH1_BEAR, () => {
                 if (onFinish) onFinish();
-                this.enterBattle('BossBear');
+                this.enterBattle({ bgm: 'game1', bpm: 120, levelId: 90, bossKey: 'bear', bgImage: 'ch1_play', gameDuration: 90 });
             });
         });
     }
@@ -99,18 +109,29 @@ export class StoryFlow extends Component {
         this.showDialogue(CH1_CONVOY, () => {
             this.showDialogue(CH1_TIANYU, () => {
                 if (onFinish) onFinish();
-                this.enterBattle('BossTianyu');
+                this.enterBattle({ bgm: 'boss_tianyu', bpm: 150, levelId: 91, bossKey: 'tianyu', bgImage: 'ch3_tianyu', gameDuration: 90 });
             });
         });
     }
 
+    // ---------- 已经看过的剧情点：给一句提示 ----------
+    public showEmptyHint(pointId: string) {
+        const lines = CH1_EMPTY_HINT[pointId];
+        if (lines) this.showDialogue(lines);
+    }
+
     // ---------- 战斗 ----------
-    public enterBattle(scene: string) {
+    // 进剧情战斗：所有 BOSS 共用 Boss.scene，只是参数不同
+    public enterBattle(cfg: {
+        bgm: string; bpm: number; levelId: number;
+        bossKey: string; bgImage: string; gameDuration?: number;
+    }) {
+        BattleConfig.set(cfg);
         // 先淡到黑屏再切场景，避免硬切
         if (this.narration) {
-            this.narration.fadeToBlack(0.5, () => LoadingController.goto(scene));
+            this.narration.fadeToBlack(0.5, () => LoadingController.goto('Boss'));
         } else {
-            LoadingController.goto(scene);
+            LoadingController.goto('Boss');
         }
     }
 
@@ -121,6 +142,7 @@ export class StoryFlow extends Component {
     }
 
     private lockPlayer() {
+        if (this.convoyPoint) this.convoyPoint.active = false;
         this.setCanMove(false);
         if (this.fireBubble) this.fireBubble.active = false;
         if (this.convoyBubble) this.convoyBubble.active = false;

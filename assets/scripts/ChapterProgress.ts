@@ -14,6 +14,9 @@ export class ChapterProgress {
     /** 第一章终章 BOSS：面纱女子（天羽） */
     static tianyuDefeated: boolean = false;
 
+    /** 第一章收尾是否已经演过（演过就不再重复播，让玩家能回地图逛） */
+    static sawEnding: boolean = false;
+
     /** 主线是否完成：两个 BOSS 都打赢了 */
     static get mainDone(): boolean {
         return ChapterProgress.tianyuDefeated;

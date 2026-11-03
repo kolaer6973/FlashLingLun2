@@ -1,4 +1,5 @@
 import { _decorator, Component, Node, Label, UITransform } from 'cc';
+import { ChapterProgress } from './ChapterProgress';
 const { ccclass, property } = _decorator;
 
 /**
@@ -32,6 +33,8 @@ export class ChapterInfoPanel extends Component {
     sideTotal: number = 3;
 
     start() {
+        // 主线进度来自运行时（通关第一章后 ChapterProgress.mainDone 为 true）
+        this.mainDone = ChapterProgress.mainDone;
         this.refresh();
     }
 

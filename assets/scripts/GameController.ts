@@ -2,6 +2,7 @@ import { _decorator, Component, Node, Prefab, instantiate, NodePool, Vec3, input
 import { Note } from './Note';
 import { LoadingController } from './LoadingController';
 import { ChapterProgress } from './ChapterProgress';
+import { BattleConfig } from './BattleConfig';
 
 const { ccclass, property } = _decorator;
 
@@ -107,6 +108,7 @@ export class GameController extends Component {
 
 
     start() {
+        this.applyBattleConfig();
         this.remainTime = this.gameDuration;   // 倒计时按关卡时长走
         this.playBgm();         // 进入关卡就播放 BGM（文件名由 bgmName 决定）
         this.loadHitSounds();   // 加载 5 个五声音阶音色
@@ -128,6 +130,30 @@ export class GameController extends Component {
             const op = this.successLabel.node.getComponent(UIOpacity) || this.successLabel.node.addComponent(UIOpacity);
             op.opacity = 0;
         }
+    }
+
+    // 剧情战斗：把 BattleConfig 的配置覆盖到本场景（挑战模式不走这里）
+    private applyBattleConfig() {
+        if (!BattleConfig.active) return;
+        this.bgmName = BattleConfig.bgm;
+        this.bpm = BattleConfig.bpm;
+        this.levelId = BattleConfig.levelId;
+        this.bossKey = BattleConfig.bossKey;
+        this.bossMode = true;
+        this.gameDuration = BattleConfig.gameDuration;
+        this.remainTime = this.gameDuration;
+        if (BattleConfig.bgImage) this.loadBattleBg(BattleConfig.bgImage);
+        BattleConfig.clear();   // 配置只消费一次，避免影响挑战模式
+    }
+
+    private loadBattleBg(name: string) {
+        const bgNode = this.node.parent ? this.node.parent.getChildByName('背景') : null;
+        const bg = bgNode ? bgNode.getComponent(Sprite) : null;
+        if (!bg) return;
+        resources.load('cg/' + name + '/spriteFrame', SpriteFrame, (err, frame) => {
+            if (err || !frame) { console.log('[战斗] 背景加载失败: ' + name); return; }
+            bg.spriteFrame = frame;
+        });
     }
 
     // 播放背景音乐：从 resources/audio/ 目录动态加载（文件名由 bgmName 配置），循环播放
