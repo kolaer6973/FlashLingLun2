@@ -126,6 +126,12 @@ assets/
 - 引擎：Cocos Creator 3.8.6
 - 剧情文本：原创，改编自本人同名小说
 
+## 授权
+
+- **源代码**：MIT License（见 [LICENSE](LICENSE)）
+- **音乐 / 美术素材**：AI 生成或程序化合成，见上方「素材声明」
+- **字体**：霞鹜文楷，SIL Open Font License 1.1
+
 ## 作者
 
 kolaer6973
