@@ -60,6 +60,9 @@ export class GameController extends Component {
     @property bossMode: boolean = false;             // BOSS 战：赢了标记章节进度并回剧情场景
     @property bossKey: string = 'bear';           // BOSS 标识：bear / tianyu
 
+    @property({ tooltip: '背景乐总音量上限（滑条拉满时的实际音量）' })
+    masterBgmVolume: number = 0.8;
+
     @property
     bpm: number = 148;   // 背景乐 BPM（每分钟拍数），调到大致合拍即可
 
@@ -169,6 +172,7 @@ export class GameController extends Component {
             this.audioSource.clip = clip;
             this.audioSource.loop = true;   // 循环播放
             this.audioSource.play();
+            this.onBgmVolume();   // 加载完成后立刻按滑条应用音量
             this.gameStarted = true;   // 音乐响起，倒计时从这刻正式开始（不再提前走）
             // 先让音乐响 leadIn 秒，再开始掉音符，避免「乐还没响、音符先掉」
             this.scheduleOnce(() => this.startChart(), this.leadIn);
@@ -427,7 +431,7 @@ export class GameController extends Component {
     onBgmVolume() {
         if (!this.bgmSlider) return;
         const p = this.bgmSlider.progress;
-        if (this.audioSource) this.audioSource.volume = p;
+        if (this.audioSource) this.audioSource.volume = p * this.masterBgmVolume;
         if (this.bgmFill) {
             const trackW = this.bgmSlider.node.getComponent(UITransform).width;
             this.bgmFill.getComponent(UITransform).width = trackW * p;

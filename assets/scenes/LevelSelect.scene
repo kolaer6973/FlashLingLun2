@@ -1854,7 +1854,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 344.31504526389506,
+      "width": 254.31504526389506,
       "height": 54.4
     },
     "_anchorPoint": {
@@ -1884,7 +1884,7 @@
       "b": 247,
       "a": 255
     },
-    "_string": "《宫商角徵羽》/",
+    "_string": "《雾中雨》/",
     "_horizontalAlign": 0,
     "_verticalAlign": 1,
     "_actualFontSize": 45,
@@ -1950,8 +1950,8 @@
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 69.31504526389506,
-      "y": -1.8480000000000132,
+      "x": -11.177,
+      "y": -1.848,
       "z": 0
     },
     "_lrot": {
@@ -1989,7 +1989,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 172.5022624567956,
+      "width": 132.62222705640497,
       "height": 54.4
     },
     "_anchorPoint": {
@@ -2019,7 +2019,7 @@
       "b": 247,
       "a": 255
     },
-    "_string": "七朵乐队",
+    "_string": "Kolaer",
     "_horizontalAlign": 0,
     "_verticalAlign": 1,
     "_actualFontSize": 40,
@@ -4685,13 +4685,13 @@
       "__id__": 62
     },
     "songNames": [
-      "《宫商角徵羽》",
-      "《夜、萤火虫和你》",
+      "《雾中雨》",
+      "《风陵渡》",
       "《快刀》"
     ],
     "songAuthors": [
-      "七朵乐队",
-      "AniFace",
+      "Kolaer",
+      "Kolaer",
       "Kolaer"
     ],
     "songStars": [

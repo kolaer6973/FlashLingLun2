@@ -97,7 +97,7 @@ export class StoryFlow extends Component {
         this.showDialogue(CH1_FIRE, () => {
             this.showDialogue(CH1_BEAR, () => {
                 if (onFinish) onFinish();
-                this.enterBattle({ bgm: 'game1', bpm: 120, levelId: 90, bossKey: 'bear', bgImage: 'ch1_play', gameDuration: 90 });
+                this.enterBattle({ bgm: 'boss_bear', bpm: 109, levelId: 90, bossKey: 'bear', bgImage: 'ch1_play', gameDuration: 90 });
             });
         });
     }
