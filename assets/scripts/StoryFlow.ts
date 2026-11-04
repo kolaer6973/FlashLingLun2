@@ -97,7 +97,7 @@ export class StoryFlow extends Component {
         this.showDialogue(CH1_FIRE, () => {
             this.showDialogue(CH1_BEAR, () => {
                 if (onFinish) onFinish();
-                this.enterBattle({ bgm: 'boss_bear', bpm: 109, levelId: 90, bossKey: 'bear', bgImage: 'ch1_play', gameDuration: 90 });
+                this.enterBattle({ bgm: 'boss_bear', bpm: 109, levelId: 90, bossKey: 'bear', bgImage: 'ch1_play', difficulty: 'normal', gameDuration: 90 });
             });
         });
     }
@@ -109,7 +109,7 @@ export class StoryFlow extends Component {
         this.showDialogue(CH1_CONVOY, () => {
             this.showDialogue(CH1_TIANYU, () => {
                 if (onFinish) onFinish();
-                this.enterBattle({ bgm: 'boss_tianyu', bpm: 150, levelId: 91, bossKey: 'tianyu', bgImage: 'ch3_tianyu', gameDuration: 90 });
+                this.enterBattle({ bgm: 'boss_tianyu', bpm: 150, levelId: 91, bossKey: 'tianyu', bgImage: 'ch3_tianyu', difficulty: 'hard', gameDuration: 90 });
             });
         });
     }

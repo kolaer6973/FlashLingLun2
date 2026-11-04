@@ -12,12 +12,13 @@ export class BattleConfig {
     static bpm: number = 120;
     static levelId: number = 90;
     static bossKey: string = 'bear';     // 打赢后写哪个进度：bear / tianyu
-    static bgImage: string = '';         // resources/cg/ 下的文件名，空 = 不改背景
+    static bgImage: string = '';
+    static difficulty: string = 'normal';   // easy / normal / hard         // resources/cg/ 下的文件名，空 = 不改背景
     static gameDuration: number = 90;
 
     static set(cfg: {
         bgm: string; bpm: number; levelId: number;
-        bossKey: string; bgImage: string; gameDuration?: number;
+        bossKey: string; bgImage: string; difficulty?: string; gameDuration?: number;
     }) {
         BattleConfig.active = true;
         BattleConfig.bgm = cfg.bgm;
@@ -25,6 +26,7 @@ export class BattleConfig {
         BattleConfig.levelId = cfg.levelId;
         BattleConfig.bossKey = cfg.bossKey;
         BattleConfig.bgImage = cfg.bgImage;
+        BattleConfig.difficulty = cfg.difficulty || 'normal';
         BattleConfig.gameDuration = cfg.gameDuration || 90;
     }
 

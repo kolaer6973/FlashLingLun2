@@ -8,6 +8,23 @@ const { ccclass, property } = _decorator;
 
 @ccclass('GameController')
 export class GameController extends Component {
+
+    // 每首歌的实测 BPM 与首拍偏移（soundfile + 谱通量网格拟合测得）
+    private static TIMING_BY_BGM: { [k: string]: { bpm: number; offset: number } } = {
+        level1_bgm:  { bpm: 87.35,  offset: 0.412 },
+        level2_bgm:  { bpm: 131.20, offset: 0.041 },
+        boss_bear:   { bpm: 109.70, offset: 0.011 },
+        game3:       { bpm: 148.00, offset: 0.077 },
+        boss_tianyu: { bpm: 150.00, offset: 0.224 },
+    };
+
+    // 难度 -> 目标音符间隔（秒）。排谱时在 四分/八分/十六分 里挑最接近的，
+    // 这样不同 BPM 的曲子难度感觉一致，而不是「BPM 快就更难」
+    private static TARGET_GAP: { [k: string]: number } = {
+        easy:   0.55,
+        normal: 0.42,
+        hard:   0.28,
+    };
     @property(Prefab)
     notePrefab: Prefab = null;   // 音符预制体
 
@@ -56,6 +73,9 @@ export class GameController extends Component {
     @property(Label)
     successLabel: Label = null;    // 成功特效文字（判定类型+分数，放 combo 下面）
 
+    @property({ tooltip: '难度：easy / normal / hard（决定音符间隔和双押）' })
+    difficulty: string = 'normal';
+
     @property returnScene: string = 'LevelSelect';   // 结算后回哪个场景
     @property bossMode: boolean = false;             // BOSS 战：赢了标记章节进度并回剧情场景
     @property bossKey: string = 'bear';           // BOSS 标识：bear / tianyu
@@ -88,7 +108,10 @@ export class GameController extends Component {
 
     private notePool = new NodePool();   // 音符对象池：复用音符，避免频繁 instantiate/destroy 触发 GC
 
-    private hitSounds: AudioClip[] = [];      // 5 个音色（宫商角徵羽），下标对应轨道
+    private hitSounds: AudioClip[] = [];      // 当前调式的 5 个判定音，下标对应轨道
+    private missClip: AudioClip = null;      // 漏音音效
+    private tapIndex = 0;                   // 判定音轮换下标（3 个变体轮流用）
+    private hitScale = 'cmaj';          // 当前使用的调式
     private audioSource: AudioSource = null;  // 共用一个音源：BGM 用 play，音效用 playOneShot
     private lightDotFrame: SpriteFrame = null; // 消除特效散出的光点贴图
 
@@ -103,6 +126,7 @@ export class GameController extends Component {
     private passScore = 1000;  // 通关所需分数（可调）
     private gameEnded = false;    // 是否已结束，防止重复判断
     private gameStarted = false;  // BGM 真正响起后置 true，倒计时从这刻才开始
+    private chartOffset = 0;      // 音乐第一拍在音频里的时间（秒）
     private leadIn = 3;         // 开局让音乐先响的秒数，再开始掉音符（解决「乐没响音符先掉」）
 
     private fallTime = 2;       // 音符下落时间（秒）= (出生500 - 判定线-300) / 速度400；改 Note.speed 要同步改
@@ -112,6 +136,7 @@ export class GameController extends Component {
 
     start() {
         this.applyBattleConfig();
+        this.applyTiming();   // 用实测 BPM/首拍覆盖场景里的值
         this.remainTime = this.gameDuration;   // 倒计时按关卡时长走
         this.playBgm();         // 进入关卡就播放 BGM（文件名由 bgmName 决定）
         this.loadHitSounds();   // 加载 5 个五声音阶音色
@@ -136,6 +161,14 @@ export class GameController extends Component {
     }
 
     // 剧情战斗：把 BattleConfig 的配置覆盖到本场景（挑战模式不走这里）
+    // 按 bgmName 查实测时序，覆盖场景里填的 bpm 和首拍偏移
+    private applyTiming() {
+        const t = GameController.TIMING_BY_BGM[this.bgmName];
+        if (!t) return;
+        this.bpm = t.bpm;
+        this.chartOffset = t.offset;
+    }
+
     private applyBattleConfig() {
         if (!BattleConfig.active) return;
         this.bgmName = BattleConfig.bgm;
@@ -144,6 +177,7 @@ export class GameController extends Component {
         this.bossKey = BattleConfig.bossKey;
         this.bossMode = true;
         this.gameDuration = BattleConfig.gameDuration;
+        this.difficulty = BattleConfig.difficulty;
         this.remainTime = this.gameDuration;
         if (BattleConfig.bgImage) this.loadBattleBg(BattleConfig.bgImage);
         BattleConfig.clear();   // 配置只消费一次，避免影响挑战模式
@@ -180,41 +214,87 @@ export class GameController extends Component {
     }
 
     // 按谱面生成音符：BGM 真正响起后调用（三段式：开始→高潮→收尾，音符大致落在拍点上）
+    // 谱面生成：以实测首拍为锚点，按八分音符网格排，带段落密度和双押
     startChart() {
-        const beat = 60 / this.bpm;   // 每拍的秒数
-        const hits: number[] = [];    // 每个音符「到达判定线」的时刻（秒）
+        if (this.gameEnded) return;
 
-        if (this.levelId === 2 || this.levelId === 3) {
-            // 第二/三关：整体衔接更紧（全程每 1 拍），不再额外加密高潮（0.5 拍太密，5 轨道视觉上已经够密）
-            // 第三关谱面暂定和第二关相同，等你想加难再单独改
-            for (let t = 0; t < this.gameDuration; t += beat) hits.push(t);  // 全程每 1 拍 1 个
-        } else {
-            // 第一关：三段式谱面：开始(稀) → 高潮(密) → 收尾(稀)
-            for (let t = 0; t < 15; t += beat * 2) hits.push(t);                  // 开始：每 2 拍 1 个
-            for (let t = 15; t < 55; t += beat) hits.push(t);                     // 高潮：每 1 拍 1 个
-            for (let t = 55; t < this.gameDuration; t += beat * 2) hits.push(t);  // 收尾：每 2 拍 1 个
+        const beat = 60 / this.bpm;      // 每拍秒数（实测）
+        // 按难度选细分：四分(beat) / 八分(beat/2) / 十六分(beat/4) 里，最接近目标间隔的那个
+        const target = GameController.TARGET_GAP[this.difficulty] || 0.42;
+        let sub = 1;
+        let bestDiff = Math.abs(beat - target);
+        for (const cand of [2, 4]) {
+            const d = Math.abs(beat / cand - target);
+            if (d < bestDiff) { bestDiff = d; sub = cand; }
         }
+        const step = beat / sub;         // 实际的音符间隔
 
-        // 每个音符在「到达时刻 - 下落时间」时生成，这样落到判定线正好卡在拍点上
-        for (const hitTime of hits) {
-            const delay = hitTime - this.fallTime;
+        const off = this.chartOffset;    // 音乐第一拍的位置
+        const lead = this.leadIn;        // 音乐先响几秒再排谱
+        const dur = this.gameDuration;
+
+        this.chartSeed = 20261104 + this.levelId * 7919;   // 每关固定种子，谱面可复现
+
+        // 第一个「音乐时间 >= lead」的八分位
+        let k0 = Math.ceil((lead - off) / step);
+        if (k0 < 0) k0 = 0;
+        const totalK = Math.floor((lead + dur - off) / step);
+
+        const mainEnd = Math.max(12, dur - 12);   // 12 秒之后进入主段
+        let lastTrack = -1;
+
+        for (let k = k0; k <= totalK; k++) {
+            const musicTime = off + k * step;
+            const chartTime = musicTime - lead;
+            if (chartTime < 0) continue;
+
+            // ① 段落密度：开头和收尾用四分（每两个八分位一个音），中间用八分
+            const inMain = (musicTime >= 12 && musicTime <= mainEnd);
+            if (!inMain && (k % 2 !== 0)) continue;
+
+            // ② 偶尔留白，避免机械均匀（大约每 12 个音空 1 个）
+            if (inMain && this.nextRand() < 0.08) continue;
+
+            // ③ 选轨道：尽量避免和上一个音同轨
+            let track = Math.floor(this.nextRand() * 5);
+            if (track >= 5) track = 4;
+            if (track === lastTrack) track = (track + 1 + Math.floor(this.nextRand() * 4)) % 5;
+            lastTrack = track;
+
+            const delay = chartTime - this.fallTime;
             if (delay >= 0) {
-                this.scheduleOnce(() => this.spawnNote(), delay);
+                const tr = track;
+                this.scheduleOnce(() => this.spawnNote(tr), delay);
+            }
+
+            // ④ 双押：主段每 2 拍（8 个八分位）在相邻轨道补一个
+            if (this.difficulty === 'hard' && inMain && k % 8 === 0 && delay >= 0) {
+                const t2 = (track + 2) % 5;
+                this.scheduleOnce(() => this.spawnNote(t2), delay);
             }
         }
     }
 
+    // 谱面用的确定性伪随机（同一关每次生成结果一致）
+    private chartSeed = 1;
+    private nextRand(): number {
+        this.chartSeed = (this.chartSeed * 1103515245 + 12345) % 2147483648;
+        return this.chartSeed / 2147483648;
+    }
+
     // 加载 5 个五声音阶音色（宫商角徵羽 = C D E G A），下标对应轨道 0~4
+    // 按当前 BGM 的调式加载 5 个判定音（找不到就退回 C 大调）
+    // 判定音：3 个木鱼变体轮流播（无音高，只标记节奏），外加漏音的闷响
+    // 加载本曲自己的判定音（找不到就退回 level1 的）
+    // 判定音：所有曲子统一用同一个柔和轻击（hit_soft）
     loadHitSounds() {
-        const names = ['C4', 'D4', 'E4', 'G4', 'A4'];   // 从左到右音越来越高
-        names.forEach((name, i) => {
-            resources.load('audio/' + name, AudioClip, (err, clip) => {
-                if (err) {
-                    console.log('音色加载失败：', name, err);
-                    return;
-                }
-                this.hitSounds[i] = clip;
-            });
+        resources.load('audio/hit_soft', AudioClip, (err, clip) => {
+            if (err || !clip) { console.log('判定音加载失败'); return; }
+            this.hitSounds[0] = clip;
+        });
+        resources.load('audio/hit_miss', AudioClip, (err, clip) => {
+            if (err || !clip) { console.log('漏音音效加载失败'); return; }
+            this.missClip = clip;
         });
     }
 
@@ -230,39 +310,47 @@ export class GameController extends Component {
     }
 
     // 命中音符时播放对应轨道的音（用 playOneShot，不会打断 BGM）
+    // 命中：三个木鱼变体轮流播，音量固定（不按判定类型区分）
+    // 命中：播本曲的判定音（同一个音，音量固定）
     playHitSound(track: number) {
-        if (!this.audioSource) {
-            this.audioSource = this.node.addComponent(AudioSource);
-        }
-        const clip = this.hitSounds[track];
-        if (clip) {
-            this.audioSource.playOneShot(clip, this.hitVolume);
-        }
+        if (!this.audioSource) this.audioSource = this.node.addComponent(AudioSource);
+        const clip = this.hitSounds[0];
+        if (clip) this.audioSource.playOneShot(clip, this.hitVolume * 0.6);
     }
 
-    spawnNote() {
-        if (this.gameEnded) return;   // 游戏已结束，不再生成（防止已排定的音符继续掉）
+    // 漏音：低频闷响，让玩家听出"这里空了"
+    playMissSound() {
+        if (!this.missClip) return;
+        if (!this.audioSource) this.audioSource = this.node.addComponent(AudioSource);
+        this.audioSource.playOneShot(this.missClip, this.hitVolume * 0.75);
+    }
 
-        // 从对象池取一个音符，池空才真正 instantiate（复用，避免频繁创建销毁触发 GC）
+    // 生成一个音符；传了 track 就用指定轨道（谱面编排用），不传就随机
+    spawnNote(track?: number) {
+        if (this.gameEnded) return;   // 游戏已结束，不再生成
+
         let note = this.notePool.get();
         if (!note) {
             note = instantiate(this.notePrefab);
         }
 
-        // 随机选一条「最近没出过」的轨道，避免同轨音符连续撞在一起
-        let track = Math.floor(Math.random() * 5);
-        while (this.recentTracks.indexOf(track) !== -1) {
-            track = Math.floor(Math.random() * 5);
-        }
-        this.recentTracks.push(track);
-        if (this.recentTracks.length > 2) {                  // 只记最近 2 条，约 1 秒后该轨道可复用
-            this.recentTracks.shift();
+        let tr: number;
+        if (typeof track === 'number') {
+            tr = track;
+        } else {
+            // 没指定：随机选一条最近没出过的轨道
+            tr = Math.floor(Math.random() * 5);
+            while (this.recentTracks.indexOf(tr) !== -1) {
+                tr = Math.floor(Math.random() * 5);
+            }
+            this.recentTracks.push(tr);
+            if (this.recentTracks.length > 2) this.recentTracks.shift();
         }
 
-        note.active = true;                                  // 重新显示（复用的音符被隐藏过）
-        note.setPosition(new Vec3(this.trackX[track], 500, 0));  // 落在随机轨道顶部
+        note.active = true;
+        note.setPosition(new Vec3(this.trackX[tr], 500, 0));
         const noteComp = note.getComponent(Note);
-        if (noteComp) noteComp.reset();                      // 重置成「刚出生」状态
+        if (noteComp) noteComp.reset();
         this.noteContainer.addChild(note);
     }
 
@@ -524,6 +612,7 @@ export class GameController extends Component {
             if (!note.getComponent(Note)) continue;   // 跳过特效光点
             if (note.position.y < this.missY) {
                 this.miss++;          // 漏掉一个
+                this.playMissSound();   // 漏音音效
                 this.combo = 0;       // 连击清0
                 console.log('Miss!');
                 this.recycleNote(note);   // 漏掉，回收进对象池
