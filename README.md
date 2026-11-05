@@ -89,7 +89,7 @@ assets/
 
 ## 在线试玩
 
-**https://comfy-marzipan-b5d8b7.netlify.app/**
+**https://flashlinglun.netlify.app/**
 
 桌面浏览器打开即可，无需安装。键盘操作为 `A` `S` `D` `J` `K`。
 首次加载需下载引擎与资源（约 3~10 秒），之后有浏览器缓存。
