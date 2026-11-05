@@ -94,6 +94,11 @@ assets/
 桌面浏览器打开即可，无需安装。键盘操作为 `A` `S` `D` `J` `K`。
 首次加载需下载引擎与资源（约 3~10 秒），之后有浏览器缓存。
 
+## 源码仓库
+
+- **Gitee（国内访问快）**：https://gitee.com/kolaer/FlashLingLun2
+- **GitHub**：https://github.com/kolaer6973/FlashLingLun2
+
 ## 本地运行
 
 1. 使用 Cocos Dashboard 导入本目录
