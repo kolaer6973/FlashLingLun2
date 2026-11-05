@@ -87,7 +87,14 @@ assets/
 
 设计分辨率 **1920 × 1080**，适配模式 fit width。
 
-## 运行方式
+## 在线试玩
+
+**https://comfy-marzipan-b5d8b7.netlify.app/**
+
+桌面浏览器打开即可，无需安装。键盘操作为 `A` `S` `D` `J` `K`。
+首次加载需下载引擎与资源（约 3~10 秒），之后有浏览器缓存。
+
+## 本地运行
 
 1. 使用 Cocos Dashboard 导入本目录
 2. 打开 `assets/scenes/Start.scene`
